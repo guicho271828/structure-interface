@@ -17,12 +17,12 @@ First, define an interface with =define-interface=.
 
 (in-package :bag)
 
-(define-interface bag-interface (bag)
+(define-interface bag-interface (bag content)
   ((emptyp    `(function (,bag) boolean))
-   (insert    `(function (,bag t) ,bag))
-   (delete1   `(function (,bag t) ,bag))
-   (get1      `(function (,bag) t))
-   (map-bag   `(function (,bag (function (t) t)) (values))))
+   (insert    `(function (,bag  ,content) ,bag))
+   (delete1   `(function (,bag  ,content) ,bag))
+   (get1      `(function (,bag) ,content))
+   (map-bag   `(function (,bag (function (,content) t)) (values))))
   :export t
   :documentation "Interface for bag")
 
@@ -43,7 +43,7 @@ Then, in a different package, implement several methods:
 
 (in-package :bag.list)
 
-(implement-interface (bag:bag-interface list))
+(implement-interface (bag:bag-interface list t))
 
 (defun bag.list:emptyp (list)
   ;; The package prefix is meant to emphasize that the symbol is different from bag:emptyp.
@@ -61,7 +61,7 @@ Then, in a different package, implement several methods:
 
 (in-package :bag.hash)
 
-(implement-interface (bag:bag-interface hash-table))
+(implement-interface (bag:bag-interface hash-table t))
 
 (defun bag.hash:emptyp (hash)
   (zerop (hash-table-count hash)))
