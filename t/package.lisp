@@ -8,7 +8,7 @@
   (:use :cl
         :structure-interface
         :fiveam
-        :lisp-namespace :immutable-struct :trivia :alexandria))
+        :lisp-namespace :trivia :alexandria))
 (in-package :structure-interface.test)
 
 
