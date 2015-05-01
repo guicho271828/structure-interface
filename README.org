@@ -19,10 +19,10 @@ First, define an interface with =define-interface=.
 
 (define-interface bag-interface (bag)
   ((emptyp    `(function (,bag) boolean))
-   (insert    `(function (,bag node) ,bag))
+   (insert    `(function (,bag t) ,bag))
    (delete1   `(function (,bag t) ,bag))
-   (get1      `(function (,bag) node))
-   (map-bag   `(function (,bag (function (node) t)) (values))))
+   (get1      `(function (,bag) t))
+   (map-bag   `(function (,bag (function (t) t)) (values))))
   :export t
   :documentation "Interface for bag")
 
