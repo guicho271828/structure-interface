@@ -67,7 +67,7 @@ Then, in a different package, implement several methods:
   (zerop (hash-table-count hash)))
 
 (defun bag.hash:insert (hash node)
-  (setf (gethash (id node) hash) node)
+  (setf (gethash node hash) node)
   hash)
 
 #+END_SRC
