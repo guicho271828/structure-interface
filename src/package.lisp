@@ -6,7 +6,10 @@
 (in-package :cl-user)
 (defpackage structure-interface
   (:use :cl :trivia :alexandria)
-  (:shadowing-import-from  :immutable-struct :ftype :defstruct))
+  (:shadowing-import-from  :immutable-struct :ftype :defstruct)
+  (:export
+   #:define-interface
+   #:implement-interface))
 (in-package :structure-interface)
 
 ;;; define-interface
