@@ -53,12 +53,14 @@
 (defun check-impl (methods impl)
   (assert (= (length methods) (length impl))
           nil
-          "mismatch in interface/implementation"))
+          "Assertion (= (length ~a) (length ~a)) failed: ~
+           mismatch in interface/implementation!" methods impl))
 
 (defun check-args (typevars typevals)
   (assert (= (length typevars) (length typevals))
           nil
-          "mismatch in interface typevars"))
+          "Assertion (= (length ~a) (length ~a)) failed: ~
+           mismatch in interface typevars"  typevars typevals))
 
 ;;; implement-interface
 
