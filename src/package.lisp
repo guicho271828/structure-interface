@@ -9,7 +9,9 @@
   (:shadowing-import-from  :immutable-struct :ftype :defstruct)
   (:export
    #:define-interface
-   #:implement-interface))
+   #:implement-interface
+   #:import-interface
+   #:shadowing-import-interface))
 (in-package :structure-interface)
 
 ;;; define-interface
@@ -136,4 +138,13 @@
                          (defun-ematch* ,m ,args ,@body))))
                   methods (iota (length methods)))))))
 
+
+
+;;; import/shadowing-import-interface
+
+(defmacro import-interface (name)
+  `(import ',(interface-methods (symbol-interface name))))
+
+(defmacro shadowing-import-interface (name)
+  `(shadowing-import ',(interface-methods (symbol-interface name))))
 
