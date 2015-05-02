@@ -15,8 +15,8 @@
 ;;; define-interface
 
 (defstruct interface
-  (typevars nil :type list)
-  (methods nil :type list)
+  (typevars (error "no typevars") :type list) ;of symbols
+  (methods (error "no methods") :type list)   ;of symbols
   (hash (make-hash-table :test 'equal) :type hash-table))
 
 (defun expander-fn-name (name)
