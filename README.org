@@ -1,19 +1,15 @@
 
 * Structure-Interface  - Non-CLOS, compile-time, inlined, fast method dispatching system
 
-+ /We stick to the functions./
-+ /We stick to the structures and types./
-+ /We stick to the primitive control./
++ /stick to the functions./
++ /stick to the structures and types./
++ /stick to the primitive control./
 
 ** Usage
 
-First, define an interface with =define-interface=.
+Quick Look:
 
 #+BEGIN_SRC lisp
-
-(defpackage :bag
-  (:use :cl :structure-interface)
-  (:export :bag-interface))
 
 (in-package :bag)
 
@@ -26,63 +22,17 @@ First, define an interface with =define-interface=.
   :export t
   :documentation "Interface for bag")
 
-#+END_SRC
-
-=emptyp=, =insert= etc. are the "generic function", so to speak.
-However they are just a normal inlineable functions. There are no CLOS-like elements.
-
-=:export t= exports those functions.
-
-Then, in a different package, implement several methods:
-
-#+BEGIN_SRC lisp
-
-(defpackage :bag.list
-  ;; do not (:use :bag) !
-  (:use :cl :structure-interface))
-
 (in-package :bag.list)
 
 (implement-interface (bag:bag-interface list t))
 
 (defun bag.list:emptyp (list)
-  ;; The package prefix is meant to emphasize that the symbol is different from bag:emptyp.
-  ;; again, bag.list:emptyp is a normal function.
   (null list))
-
-(defun bag.list:insert (list node)
-  (push node list)
-  list)
-
-;; several other methods comes here
-
-(defpackage :bag.hash
-  (:use :cl :structure-interface))
-
-(in-package :bag.hash)
-
-(implement-interface (bag:bag-interface hash-table t))
-
-(defun bag.hash:emptyp (hash)
-  (zerop (hash-table-count hash)))
-
-(defun bag.hash:insert (hash node)
-  (setf (gethash node hash) node)
-  hash)
+...
 
 #+END_SRC
 
-=implement-interface= is essentially adding a lots of =ftype= declamation,
-and also recompiles the generic version of function (e.g. =bag:emptyp=)
-with additional dispatching branches
-(e.g. =bag.list:emptyp,bag.hash:emptyp=). Every time you add a new
-implementation, the generic version of function is redefined so that it
-covers all possible cases.
-
-Finally, in the actual usecase, the generic version of =emptyp= is inlined,
-then if a sufficient amount of type declaration is added, smart compilers
-like SBCL can completely eliminate the unnecessary branch of the
-dispatching tree and the runtime dispatch completely disappears.
+[[https://github.com/guicho271828/structure-interface/wiki][Visit our wiki!]]
 
 ** Dependencies
 
@@ -103,7 +53,6 @@ Also, it depends on the following libraries:
 
 + alexandria by  ::
     Alexandria is a collection of portable public domain utilities.
-
 
 
 ** Installation
