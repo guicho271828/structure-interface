@@ -19,6 +19,7 @@
 (defstruct interface
   (typevars (error "no typevars") :type list) ;of symbols
   (methods (error "no methods") :type list)   ;of symbols
+  (external-methods (error "no external methods") :type list) ;of symbols
   (hash (make-hash-table :test 'equal) :type hash-table))
 
 (defun expander-fn-name (name)
@@ -30,15 +31,26 @@
 
 (lisp-namespace:define-namespace interface interface)
 
-(defmacro define-interface (name typevars (&body methods) &key (export t) (documentation ""))
+(defun externalp (m) (getf m :external))
+
+(defmacro define-interface (name typevars
+                            (&whole methods (method ftype &key external) &rest rest)
+                            &key (export t) (documentation ""))
+  (declare (ignore method ftype external rest))
+  (call-define-interface name typevars methods export documentation))
+
+(defun call-define-interface (name typevars methods export documentation)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      (setf (symbol-interface ',name)
-           (interface ',typevars ',(mapcar #'first methods)))
+           (interface ',typevars
+                      ',(mapcar #'first methods)
+                      ',(mapcar #'first 
+                                (remove-if-not #'externalp methods :key #'cddr))))
      ,@(mapcar (lambda-ematch
-                 ((list name body)
+                 ((list* name body keys)
                   (let ((expander (expander-fn-name name)))
                     `(progn
-                       ,@(when export `((export ',name)))
+                       ,@(when (or export (externalp keys)) `((export ',name)))
                        (defun ,expander ,typevars ,body)
                        (deftype ,name ,typevars (,expander ,@typevars))))))
                methods)
@@ -73,7 +85,7 @@
                                  export
                                  inherit)
   (ematch (symbol-interface name)
-    ((interface typevars methods hash)
+    ((interface typevars methods external-methods hash)
      (let ((implementations
             (mapcar (lambda (x) (intern (string x)))
                     methods)))
@@ -83,6 +95,9 @@
           ,(declaim-method-types methods implementations typevals)
           ,(declaim-inline implementations)
           ,@(when export `((export ',implementations)))
+          (export ',(let ((alist (pairlis methods implementations)))
+                      (mapcar (lambda (exm) (cdr (assoc exm alist)))
+                              external-methods)))
           ,@(when inherit
               (check-args typevars inherit)
               (list
