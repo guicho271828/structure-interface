@@ -69,7 +69,7 @@
 
 (defmacro implement-interface ((name &rest typevals)
                                &key
-                                 (export t)
+                                 export
                                  inherit)
   (ematch (symbol-interface name)
     ((interface typevars methods hash)
