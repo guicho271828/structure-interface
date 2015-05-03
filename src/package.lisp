@@ -42,6 +42,7 @@
                        (defun ,expander ,typevars ,body)
                        (deftype ,name ,typevars (,expander ,@typevars))))))
                methods)
+     ,@(when export `((export ',name)))
      (eval (define-generic-functions ',name))
      ,(dummy-form name typevars
                   (format nil "~a~2%The macro is a dummy macro for slime integration."
