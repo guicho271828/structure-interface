@@ -144,40 +144,54 @@
                            (args (mapcar (lambda (x)
                                            (if (lambda-keywordp x) x (gensym)))
                                          (second (apply expander typevars))))
-                           (args/lk (/lk args))
-                           arg-type-list
-                           result-type-list
-                           (body (let (clauses)
-                                   (maphash
-                                    (lambda (typevals impl-function-names)
-                                      ;; run type-expand and get the arguments types and result types
-                                      (push (ematch (apply expander typevals)
-                                              ((list 'function arg-type result-type)
-                                               (push arg-type arg-type-list)
-                                               (push result-type result-type-list)
-                                               (let ((arg-type/lk (/lk arg-type)))
-                                                 `(,(mapcar (lambda (type)
-                                                              (match type
-                                                                ((list* 'function _)
-                                                                 `(type function))
-                                                                (_
-                                                                 `(type ,type))))
-                                                            arg-type/lk)
-                                                    (,(elt impl-function-names i) ,@args/lk)))))
-                                            clauses))
-                                    hash)
-                                   (nreverse clauses))))
+                           triples)
+                      (maphash
+                       (lambda (typevals impl-function-names)
+                         ;; run type-expand and get the arguments types and result types
+                         (ematch (apply expander typevals)
+                           ((list 'function arg-type result-type)
+                            (push (list arg-type result-type (elt impl-function-names i))
+                                  triples))))
+                       hash)
+                      (setf triples (apply-precedence-order triples))
                       `(progn
-                         ,@(when arg-type-list
+                         ,@(when triples
                              `((ftype ,m ,@(apply #'mapcar (lambda (&rest args)
                                                              (if (lambda-keywordp (car args))
                                                                  (car args)
                                                                  `(or ,@args)))
-                                                  arg-type-list) t)))
+                                                  (mapcar #'first triples)) t)))
                          (declaim (inline ,m))
-                         (defun-ematch* ,m ,args ,@body))))
+                         (defun ,m ,args ,(make-body (/lk args) triples)))))
                   methods (iota (length methods)))))))
 
+(defun apply-precedence-order (triples)
+  (sort (copy-list triples)
+        #'precedence-order
+        :key #'first))
+
+(defun-ematch* precedence-order (types1 types2)
+  ((nil nil) t)
+  (((list* t1 r1) (list* t2 r2))
+   (cond
+     ((subtypep t1 t2) nil)
+     ((subtypep t2 t1) t)
+     (t (precedence-order r1 r2)))))
+
+(defun make-body (args triples)
+  `(ematch* ,args
+     ,@(mapcar (lambda-ematch
+                 ((list argtype _ method)
+                  (let ((argtype/lk (/lk argtype)))
+                    `(,(mapcar (lambda (type)
+                                 (match type
+                                   ((list* 'function _)
+                                    `(type function))
+                                   (_
+                                    `(type ,type))))
+                               argtype/lk)
+                       (,method ,@args)))))
+               triples)))
 
 
 ;;; import/shadowing-import-interface
