@@ -80,6 +80,7 @@
        (check-args typevars typevals)
        `(eval-when (:compile-toplevel :load-toplevel :execute)
           ,(declaim-method-types methods implementations typevals)
+          ,(declaim-inline implementations)
           ,@(when export `((export ',implementations)))
           ,@(when inherit
               (check-args typevars inherit)
@@ -100,6 +101,10 @@
                         `(cl:ftype (,method ,@typevals) ,impl))
                       methods
                       implementations)))
+(defun declaim-inline (implementations)
+  `(declaim ,@(mapcar (lambda (impl) `(inline ,impl)) implementations)))
+(defun declaim-notinline (implementations)
+  `(declaim ,@(mapcar (lambda (impl) `(notinline ,impl)) implementations)))
 
 (defun define-specialied-functions (methods
                                     impls inherited-impls
@@ -110,7 +115,7 @@
                   typevals inherited-typevals
                   t1 t2))
         typevals inherited-typevals)
-  `(progn
+  `(progn 
      ,@(mapcar (lambda (m i1 i2)
                  (let ((args (mapcar (lambda (x)
                                        (if (lambda-keywordp x) x (gensym)))
