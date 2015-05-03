@@ -25,6 +25,9 @@
   (let ((*package* (symbol-package name)))
     (symbolicate name '-type)))
 
+(defun expander-fn (name)
+  (symbol-function (expander-fn-name name)))
+
 (lisp-namespace:define-namespace interface interface)
 
 (defmacro define-interface (name typevars (&body methods) &key (export t) (documentation ""))
@@ -102,7 +105,7 @@
      `(progn
         ,@(mapcar (lambda (m i)
                     ;; for each method, redefine a new generic function
-                    (let* ((expander (symbol-function (expander-fn-name m)))
+                    (let* ((expander (expander-fn m))
                            (args (mapcar (lambda (x)
                                            (if (lambda-keywordp x) x (gensym)))
                                          (second (apply expander typevars))))
