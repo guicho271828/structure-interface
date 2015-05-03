@@ -67,7 +67,10 @@
 
 ;;; implement-interface
 
-(defmacro implement-interface ((name &rest typevals) &key (export t))
+(defmacro implement-interface ((name &rest typevals)
+                               &key
+                                 (export t)
+                                 inherit)
   (ematch (symbol-interface name)
     ((interface typevars methods hash)
      (let ((implementations
@@ -75,17 +78,49 @@
                     methods)))
        (check-impl methods implementations)
        (check-args typevars typevals)
-       (setf (gethash typevals hash) implementations)
        `(eval-when (:compile-toplevel :load-toplevel :execute)
           ,(declaim-method-types methods implementations typevals)
           ,@(when export `((export ',implementations)))
-          ,(define-generic-functions name))))))
+          ,@(when inherit
+              (check-args typevars inherit)
+              (list
+               (define-specialied-functions
+                   methods
+                   implementations (or (gethash inherit hash)
+                                       (error "implementation of ~s is not defined for ~s.~% ~s"
+                                              name inherit
+                                              (hash-table-plist hash)))
+                   typevals inherit)))
+          ,(define-generic-functions name)
+          (setf (gethash ',typevals (interface-hash (symbol-interface ',name)))
+                ',implementations))))))
 
 (defun declaim-method-types (methods implementations typevals)
   `(declaim ,@(mapcar (lambda (method impl)
                         `(cl:ftype (,method ,@typevals) ,impl))
                       methods
                       implementations)))
+
+(defun define-specialied-functions (methods
+                                    impls inherited-impls
+                                    typevals inherited-typevals)
+  (mapc (lambda (t1 t2)
+          (assert (subtypep t1 t2) nil
+                  "~a does not specializes ~a: ~a is not the subtype of ~a"
+                  typevals inherited-typevals
+                  t1 t2))
+        typevals inherited-typevals)
+  `(progn
+     ,@(mapcar (lambda (m i1 i2)
+                 (let ((args (mapcar (lambda (x)
+                                       (if (lambda-keywordp x) x (gensym)))
+                                     (second (apply (expander-fn m) typevals)))))
+                   `(defun ,i1 ,args
+                      ,(format nil "inherited from ~s" i2)
+                      (declare (inline ,i2))
+                      (,i2 ,@args))))
+               methods impls inherited-impls)))
+
 
 (deftype lambda-keyword () 'symbol)
 (defun lambda-keywordp (obj)
