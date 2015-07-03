@@ -19,9 +19,6 @@
 (defstruct interface
   (typevars (error "no typevars") :type list) ;of symbols
   (methods (error "no methods") :type list)   ;of symbols
-  (external-methods (error "no external methods")
-                    :type list
-                    :documentation "method names to be exported from the current package.")
   (inline nil
           :type boolean
           :documentation "When t, specialized methods are also inlined")
@@ -36,38 +33,30 @@
 
 (lisp-namespace:define-namespace interface interface)
 
-(defun externalp (m) (getf m :external))
-
 (defmacro define-interface (name typevars
-                            (&whole methods (method ftype &key external) &rest rest)
-                            &key (export t) (documentation "") inline)
+                            (&whole methods (method ftype &key) &rest rest)
+                            &key (documentation "") inline)
   "
 FIXME: Bad interface design!!
 
  (options per method)
-:export -- each implementation of the method is always exported
 
  (options per interface)
-:export -- export all generic functions
 :inline -- specialized methods are also inlined
 "
-  (declare (ignore method ftype external rest))
+  (declare (ignore method ftype rest))
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      (setf (symbol-interface ',name)
            (interface ',typevars
                       ',(mapcar #'first methods)
-                      ',(mapcar #'first 
-                                (remove-if-not #'externalp methods :key #'cddr))
                       ,inline))
      ,@(mapcar (lambda-ematch
                  ((list* name body keys)
                   (let ((expander (expander-fn-name name)))
                     `(progn
-                       ,@(when (or export (externalp keys)) `((export ',name)))
                        (defun ,expander ,typevars ,body)
                        (deftype ,name ,typevars (,expander ,@typevars))))))
                methods)
-     ,@(when export `((export ',name)))
      (eval (define-generic-functions ',name ,inline))
      ,(dummy-form name typevars
                   (format nil "~a~2%The macro is a dummy macro for slime integration."
@@ -95,10 +84,9 @@ FIXME: Bad interface design!!
 
 (defmacro implement-interface ((name &rest typevals)
                                &key
-                                 export
                                  inherit)
   (ematch (symbol-interface name)
-    ((interface typevars methods external-methods hash inline)
+    ((interface typevars methods hash inline)
      (let ((implementations
             (mapcar (lambda (x) (intern (string x)))
                     methods)))
@@ -106,10 +94,6 @@ FIXME: Bad interface design!!
        (check-args typevars typevals)
        `(eval-when (:compile-toplevel :load-toplevel :execute)
           ,(declaim-method-types methods implementations typevals)
-          ,(when export `(export ',implementations))
-          (export ',(let ((alist (pairlis methods implementations)))
-                      (mapcar (lambda (exm) (cdr (assoc exm alist)))
-                              external-methods)))
           ,(when inherit
              (check-args typevars inherit)
              (define-specialied-functions
