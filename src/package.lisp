@@ -19,8 +19,12 @@
 (defstruct interface
   (typevars (error "no typevars") :type list) ;of symbols
   (methods (error "no methods") :type list)   ;of symbols
-  (external-methods (error "no external methods") :type list) ;of symbols
-  (inline nil :type boolean)
+  (external-methods (error "no external methods")
+                    :type list
+                    :documentation "method names to be exported from the current package.")
+  (inline nil
+          :type boolean
+          :documentation "When t, specialized methods are also inlined")
   (hash (make-hash-table :test 'equal) :type hash-table))
 
 (defun expander-fn-name (name)
@@ -37,6 +41,16 @@
 (defmacro define-interface (name typevars
                             (&whole methods (method ftype &key external) &rest rest)
                             &key (export t) (documentation "") inline)
+  "
+FIXME: Bad interface design!!
+
+ (options per method)
+:export -- each implementation of the method is always exported
+
+ (options per interface)
+:export -- export all generic functions
+:inline -- specialized methods are also inlined
+"
   (declare (ignore method ftype external rest))
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      (setf (symbol-interface ',name)
@@ -97,13 +111,13 @@
                       (mapcar (lambda (exm) (cdr (assoc exm alist)))
                               external-methods)))
           ,(when inherit
-              (check-args typevars inherit)
-               (define-specialied-functions
-                   methods
-                   implementations (or (gethash inherit hash)
-                                       (error "implementation of ~s is not defined for ~s.~% ~s"
-                                              name inherit
-                                              (hash-table-plist hash)))
+             (check-args typevars inherit)
+             (define-specialied-functions
+                 methods
+                 implementations (or (gethash inherit hash)
+                                     (error "implementation of ~s is not defined for ~s.~% ~s"
+                                            name inherit
+                                            (hash-table-plist hash)))
                  typevals inherit))
           (setf (gethash ',typevals (interface-hash (symbol-interface ',name)))
                 ',implementations)
@@ -150,7 +164,7 @@
 
 (defun define-generic-functions (name &optional inline)
   ;; recompile the generic version of the function.
-  ;; dispatch is implemented with pattern matcher.
+  ;; dispatching is implemented with pattern matcher.
   ;; always inlined and dispatch is done in compile time as much as possible
   ;; FIXME: dirty handling of lambda keywords
   (ematch (symbol-interface name)
@@ -219,4 +233,8 @@
 
 (defmacro shadowing-import-interface (name)
   `(shadowing-import ',(interface-methods (symbol-interface name))))
+
+;;; specialize-interface
+
+;; is it necessary? inline and specialize...
 
