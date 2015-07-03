@@ -19,9 +19,6 @@
 (defstruct interface
   (typevars (error "no typevars") :type list) ;of symbols
   (methods (error "no methods") :type list)   ;of symbols
-  (inline nil
-          :type boolean
-          :documentation "When t, specialized methods are also inlined")
   (hash (make-hash-table :test 'equal) :type hash-table))
 
 (defun expander-fn-name (name)
@@ -35,21 +32,19 @@
 
 (defmacro define-interface (name typevars
                             (&whole methods (method ftype &key) &rest rest)
-                            &key (documentation "") inline)
+                            &key (documentation ""))
   "
 FIXME: Bad interface design!!
 
  (options per method)
 
  (options per interface)
-:inline -- specialized methods are also inlined
 "
   (declare (ignore method ftype rest))
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      (setf (symbol-interface ',name)
            (interface ',typevars
-                      ',(mapcar #'first methods)
-                      ,inline))
+                      ',(mapcar #'first methods)))
      ,@(mapcar (lambda-ematch
                  ((list* name body keys)
                   (let ((expander (expander-fn-name name)))
@@ -57,7 +52,7 @@ FIXME: Bad interface design!!
                        (defun ,expander ,typevars ,body)
                        (deftype ,name ,typevars (,expander ,@typevars))))))
                methods)
-     (eval (define-generic-functions ',name ,inline))
+     (eval (define-generic-functions ',name))
      ,(dummy-form name typevars
                   (format nil "~a~2%The macro is a dummy macro for slime integration."
                           documentation))))
@@ -86,7 +81,7 @@ FIXME: Bad interface design!!
                                &key
                                  inherit)
   (ematch (symbol-interface name)
-    ((interface typevars methods hash inline)
+    ((interface typevars methods hash)
      (let ((implementations
             (mapcar (lambda (x) (intern (string x)))
                     methods)))
@@ -105,7 +100,7 @@ FIXME: Bad interface design!!
                  typevals inherit))
           (setf (gethash ',typevals (interface-hash (symbol-interface ',name)))
                 ',implementations)
-          (eval (define-generic-functions ',name ,inline)))))))
+          (eval (define-generic-functions ',name)))))))
 
 (defun declaim-method-types (methods implementations typevals)
   `(declaim ,@(mapcar (lambda (method impl)
@@ -146,7 +141,7 @@ FIXME: Bad interface design!!
 (defun /lk (list)
   (remove-if #'lambda-keywordp list))
 
-(defun define-generic-functions (name &optional inline)
+(defun define-generic-functions (name &optional)
   ;; recompile the generic version of the function.
   ;; dispatching is implemented with pattern matcher.
   ;; always inlined and dispatch is done in compile time as much as possible
@@ -177,7 +172,6 @@ FIXME: Bad interface design!!
                                                                  (car args)
                                                                  `(or ,@args)))
                                                   (mapcar #'first triples)) t)))
-                         ,(when inline `(declaim (inline ,m)))
                          (defun ,m ,args ,(make-body (/lk args) triples)))))
                   methods (iota (length methods)))))))
 
