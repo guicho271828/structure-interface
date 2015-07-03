@@ -20,6 +20,7 @@
   (typevars (error "no typevars") :type list) ;of symbols
   (methods (error "no methods") :type list)   ;of symbols
   (external-methods (error "no external methods") :type list) ;of symbols
+  (inline nil :type boolean)
   (hash (make-hash-table :test 'equal) :type hash-table))
 
 (defun expander-fn-name (name)
@@ -35,17 +36,15 @@
 
 (defmacro define-interface (name typevars
                             (&whole methods (method ftype &key external) &rest rest)
-                            &key (export t) (documentation ""))
+                            &key (export t) (documentation "") inline)
   (declare (ignore method ftype external rest))
-  (call-define-interface name typevars methods export documentation))
-
-(defun call-define-interface (name typevars methods export documentation)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      (setf (symbol-interface ',name)
            (interface ',typevars
                       ',(mapcar #'first methods)
                       ',(mapcar #'first 
-                                (remove-if-not #'externalp methods :key #'cddr))))
+                                (remove-if-not #'externalp methods :key #'cddr))
+                      ,inline))
      ,@(mapcar (lambda-ematch
                  ((list* name body keys)
                   (let ((expander (expander-fn-name name)))
@@ -55,7 +54,7 @@
                        (deftype ,name ,typevars (,expander ,@typevars))))))
                methods)
      ,@(when export `((export ',name)))
-     (eval (define-generic-functions ',name))
+     (eval (define-generic-functions ',name ,inline))
      ,(dummy-form name typevars
                   (format nil "~a~2%The macro is a dummy macro for slime integration."
                           documentation))))
@@ -85,7 +84,7 @@
                                  export
                                  inherit)
   (ematch (symbol-interface name)
-    ((interface typevars methods external-methods hash)
+    ((interface typevars methods external-methods hash inline)
      (let ((implementations
             (mapcar (lambda (x) (intern (string x)))
                     methods)))
@@ -93,24 +92,22 @@
        (check-args typevars typevals)
        `(eval-when (:compile-toplevel :load-toplevel :execute)
           ,(declaim-method-types methods implementations typevals)
-          ,(declaim-inline implementations)
-          ,@(when export `((export ',implementations)))
+          ,(when export `(export ',implementations))
           (export ',(let ((alist (pairlis methods implementations)))
                       (mapcar (lambda (exm) (cdr (assoc exm alist)))
                               external-methods)))
-          ,@(when inherit
+          ,(when inherit
               (check-args typevars inherit)
-              (list
                (define-specialied-functions
                    methods
                    implementations (or (gethash inherit hash)
                                        (error "implementation of ~s is not defined for ~s.~% ~s"
                                               name inherit
                                               (hash-table-plist hash)))
-                   typevals inherit)))
-          ,(define-generic-functions name)
+                 typevals inherit))
           (setf (gethash ',typevals (interface-hash (symbol-interface ',name)))
-                ',implementations))))))
+                ',implementations)
+          (eval (define-generic-functions ',name ,inline)))))))
 
 (defun declaim-method-types (methods implementations typevals)
   `(declaim ,@(mapcar (lambda (method impl)
@@ -151,7 +148,7 @@
 (defun /lk (list)
   (remove-if #'lambda-keywordp list))
 
-(defun define-generic-functions (name)
+(defun define-generic-functions (name &optional inline)
   ;; recompile the generic version of the function.
   ;; dispatch is implemented with pattern matcher.
   ;; always inlined and dispatch is done in compile time as much as possible
@@ -182,7 +179,7 @@
                                                                  (car args)
                                                                  `(or ,@args)))
                                                   (mapcar #'first triples)) t)))
-                         (declaim (inline ,m))
+                         ,(when inline `(declaim (inline ,m)))
                          (defun ,m ,args ,(make-body (/lk args) triples)))))
                   methods (iota (length methods)))))))
 
