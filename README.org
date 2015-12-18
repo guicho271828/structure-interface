@@ -1,6 +1,8 @@
 
 * Structure-Interface  - Non-CLOS, compile-time, inlined, fast method dispatching system
 
+*this library is abandoned.* I discarded the idea and moved on to /trivial-clos/.
+
 + /stick to the functions./
 + /stick to the structures and types./
 + /stick to the primitive control./
